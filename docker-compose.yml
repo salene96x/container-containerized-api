@@ -1,0 +1,23 @@
+version: '3.9'
+
+services:
+
+  fastapi:
+    container_name: container-optimization-app
+    build:
+      context: .
+    ports:
+      - "9696:9696"
+    # networks:
+    #   app_net:
+    #     ipv4_address: 192.168.0.99
+    command: uvicorn main-web-socket:app --host 0.0.0.0 --port 9696
+    tty: true # if no command exec, the container still alive
+    
+# networks:
+#   app_net:
+#     ipam:
+#       driver: default
+#       config:
+#         - subnet: "192.168.0.0/24"
+#           gateway: 192.168.0.1
