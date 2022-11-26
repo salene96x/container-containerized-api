@@ -1,10 +1,6 @@
-import asyncio
-import json
-import random
 from time import sleep, time
 from fastapi import FastAPI, WebSocket
 from fastapi.responses import HTMLResponse
-from matplotlib import container
 import GA_Newest as n_ga
 
 app = FastAPI()
@@ -20,8 +16,7 @@ async def websocket_server(web_socket: WebSocket):
     parcels_data = None
     parcels_weight = None
     i = 0
-    try :
-        while True: 
+    while True: 
             data = await web_socket.receive_json()
             if data['Status'] == 0:
                 result = n_ga.run_two(data['ContainersType'][data['ContainerIndex']], data['Parcels'], data['ParcelsWeight'], first_run=True)
@@ -32,6 +27,7 @@ async def websocket_server(web_socket: WebSocket):
                 result[0]['ContainerIndex'] = data['ContainerIndex']
                 result[0]['RemainingStacks'] = len(remaining_stacks)
                 result[0]['Status'] = 1
+                result[0]['ParcelsWeight'] = data['ParcelsWeight']
                 await web_socket.send_json(result[0])
             else :
                 if is_all_zero(remaining_stacks):
@@ -42,12 +38,11 @@ async def websocket_server(web_socket: WebSocket):
                 result[0]['ContainerIndex'] = data['ContainerIndex']
                 result[0]['RemainingStacks'] = len(remaining_stacks)
                 result[0]['Status'] = 1
+                result[0]['ParcelsWeight'] = data['ParcelsWeight']
                 for j in remaining_stacks:
                     print(j.name)
                 await web_socket.send_json(result[0])
                 #await web_socket.send_text(str(len(remaining_stacks)))
-    except:
-        print("Client disconnected")
         #time.sleep(0.1)
     # await web_socket.accept()
     # #await web_socket.send_text("Connected.")

@@ -6,6 +6,8 @@ import parcels
 import os
 from collections import Counter
 from sys import platform
+import csv
+import sys
 ''' Stack class '''
 
 
@@ -30,6 +32,8 @@ class Stack:
         random.shuffle(list_pass)
         id = ''.join(list_pass)
         return id
+    def __repr__(self) -> str:
+        return str(self.name)
 
 ''' Stacks Making Section '''
 
@@ -66,7 +70,7 @@ class StacksMaker:
             207: 0,
             208: 0
         }
-        value_mod_same_type = [2, 3, 4, 2, 3, 3]
+        value_mod_same_type = [4, 3, 2, 2, 3, 3]
         # making same-type stacking (101 - 106)
         idx = 0
         for stack_name, value in self.parcels.items():
@@ -192,52 +196,51 @@ def generate_initial_population(remaining_stacks: list) -> list:
 
 
 def get_fitness_values(population: list, container_info : list) -> list:
-    print("In getting fitness values")
+    #print("In getting fitness values")
     fitness_values = list()
-    priority_values = 1 / 7
+    priority_values = 1
     for x in population:
         #print(f"Container_Width = {container_info[0]}")
         container_area = container_info[0] * container_info[1]
+
         biggest_stack_info = parcels.Info.get_stack_info(106)
-        maximum_area = (biggest_stack_info[0] * biggest_stack_info[1]) * len(x)
-        maximum_length = biggest_stack_info[1] * 11
-        maximum_width = biggest_stack_info[0] * 3
-        maximum_estimated_weight = 100000
-        maximum_balancing_weight = int(100000 / 3) # a container can be divided into 3 sections
-        standard_balancing_weight_value = int(container_info[3] / 3)
-        area = 1 - abs(container_area - get_area(x)) / maximum_area
+        maximum_area = container_area
+        maximum_length = container_info[1]
+        maximum_width = container_info[0]
+        maximum_estimated_weight = container_info[3]
+        maximum_balancing_weight = container_info[3] / 3 # a container can be divided into 3 sections
+        #standard_balancing_weight_value = maxi
+
+        # biggest_stack_info = parcels.Info.get_stack_info(106)
+        # maximum_area = (biggest_stack_info[0] * biggest_stack_info[1]) * len(x)
+        # maximum_length = biggest_stack_info[1] * 11
+        # maximum_width = biggest_stack_info[0] * 3
+        # maximum_estimated_weight = 100000
+        # maximum_balancing_weight = int(100000 / 3) # a container can be divided into 3 sections
+        area = (1 - abs(container_area - get_area(x)) / maximum_area) / (int(get_area(x) > container_area) + 1)
         length_chrom = get_length(x)
         width_chrom = get_width(x)
         height_chrom = get_height(x)
-        maximum_height = 2.31
+        maximum_height = container_info[2]
         duplicated_genes = get_duplicated_genes(x)
+        weight_chrom = get_weight(x)
         # area_chrom = get_area(x)
         # weight_chrom = get_weight(x)
         # weight_balancing_score_chrom = get_weight_balancing(x)[1]
-        if length_chrom > container_info[1]:
-            length = (1 - abs(container_info[1] - length_chrom) / maximum_length) / 2
-        else :
-            length = 1 - abs(container_info[1] - length_chrom) / maximum_length
-        if width_chrom > container_info[0]:
-            width = (1 - abs(container_info[0] - get_width(x)) / maximum_width) / 2
-        else :
-            width = (1 - abs(container_info[0] - get_width(x)) / maximum_width)
-        if height_chrom > container_info[2]:
-            height = ((1 - abs(container_info[2] - height_chrom)) / maximum_height) / 2
-        else :
-            height = ((1 - abs(container_info[2] - height_chrom)) / maximum_height)
-        if duplicated_genes > 33:
-            duplicated_genes_count = ((1 - abs(0 - duplicated_genes)) / 33) / 2
-        else :
-            duplicated_genes_count = ((1 - abs(0 - duplicated_genes)) / 33)
-        weight = 1 - abs(container_info[3] - get_weight(x)) / maximum_estimated_weight
-        weight_balancing_score = 1 - \
-            abs(standard_balancing_weight_value - get_weight_balancing(x)[1]) / maximum_balancing_weight
+        length = (1 - abs(container_info[1] - length_chrom) / maximum_length) / (int(length_chrom > container_info[1]) + 1)
+        width = (1 - abs(container_info[0] - width_chrom) / maximum_width) / (int(width_chrom > container_info[0]) + 1)
+        height = (1 - abs(container_info[2] - height_chrom) / maximum_height) / (int(height_chrom > container_info[2]) + 1)
+        weight = (1 - abs(container_info[3] - weight_chrom) / maximum_estimated_weight) / (int(weight_chrom > container_info[3]) + 1)
+        weight_balancing_score = get_weight_balancing(x)[1]
         #print(area, length, width)
         # fitness_values.append(-abs((((28.44 - area)) * priority_values[0])) + (
         #     (12 - length) * priority_values[1]) + ((2.37 - width) * priority_values[2]) + (((21700 - weight)/1000) * priority_values[3]) + ((weight_balancing_score / 1000) * priority_values[4]))
-        fitness_values.append((area * priority_values) + (length * priority_values) + (
-            width * priority_values) + (height * priority_values) + (duplicated_genes_count * priority_values) +(weight * priority_values) + (weight_balancing_score * priority_values))
+        #fitness_values.append((area * priority_values) + (length * priority_values) + (
+            #width * priority_values) + (height * priority_values) + (duplicated_genes_count * priority_values) +(weight * priority_values) + (weight_balancing_score * priority_values))
+        if standard_passed(x, container_info):
+            fitness_values.append((area)+ (width * priority_values) + (height * priority_values) - (duplicated_genes * priority_values) + (weight * priority_values) + (weight_balancing_score) + (length))
+        else:
+            fitness_values.append((area)+ (width * priority_values) + (height * priority_values) - (duplicated_genes * priority_values) + (weight * priority_values) + (length))
     return fitness_values
 
 
@@ -247,7 +250,7 @@ def selection(population: list, fitness_values: list) -> list:
         max_idx = fitness_values.index(max(fitness_values))
         offspring_selection.append(population[max_idx])
         fitness_values[max_idx] = -99
-    print("Done Selection")
+    #print("Done Selection")
     return offspring_selection
 
 
@@ -286,7 +289,7 @@ def one_point_crossover(offspring_selection: list):
 
     #     offspring_crossover.append(new_child_one)
     #     offspring_crossover.append(new_child_two)
-    print("Done crossover")
+    #print("Done crossover")
     return offspring_crossover
 
 def runcx(offspring_selection : list):
@@ -354,7 +357,7 @@ def adaptive_mutation(offspring_crossover: list, fitness_values: list, stacks : 
     avg_fitness_value = sum(fitness_values) / len(fitness_values)
     for _ in range(10):
         random_chrom = random.choice(offspring_crossover)
-        if get_fitness_by_one(random_chrom, container_info) > avg_fitness_value:
+        if get_fitness_by_one(random_chrom, container_info) < avg_fitness_value:
             standard_rate = 0.15
         for _ in range(int(standard_rate * 33)):
             if get_length(random_chrom) > container_length or get_width(random_chrom) > container_width or get_weight(random_chrom) > container_weight:
@@ -377,14 +380,14 @@ def adaptive_mutation(offspring_crossover: list, fitness_values: list, stacks : 
             random_position = random.randint(0, 32)
             streak = 0
             if not is_all_zero(random_chrom):
-                print("Not zeros ")
+                #print("Not zeros ")
                 while random_chrom[random_position].name == 0:
                     if streak == len(random_chrom):
                         break
                     random_position = random.randint(0, 32)
                     streak += 1
-            else :
-                print("ALL ZEROS")
+            #else :
+                #print("ALL ZEROS")
             random_chrom[random_position] = to_mutate_value
         random_position_one = random.randint(0, 32)
         random_position_two = random.randint(0, 32)
@@ -395,48 +398,40 @@ def adaptive_mutation(offspring_crossover: list, fitness_values: list, stacks : 
 
         random_chrom[random_position_one], random_chrom[random_position_two], random_chrom[random_position_three] = random_chrom[
             random_position_one_swap], random_chrom[random_position_two_swap], random_chrom[random_position_three_swap]
-        print('Done mutation')
+        #print('Done mutation')
         offspring_mutation.append(random_chrom.copy())
     return offspring_mutation
 
 
 def get_fitness_by_one(chrom, container_info):
-    priority_values = 1 / 7
+    priority_values = 1
     container_area = container_info[0] * container_info[1]
     biggest_stack_info = parcels.Info.get_stack_info(106)
-    maximum_area = (biggest_stack_info[0] * biggest_stack_info[1]) * len(chrom)
-    maximum_length = biggest_stack_info[1] * 11
-    maximum_width = biggest_stack_info[0] * 3
-    maximum_estimated_weight = 100000
-    maximum_balancing_weight = int(100000 / 3) # a container can be divided into 3 sections
+    maximum_area = container_area
+    maximum_length = container_info[1]
+    maximum_width = container_info[0]
+    maximum_estimated_weight = container_info[3]
+    maximum_balancing_weight = maximum_estimated_weight / 3 # a container can be divided into 3 sections
     standard_balancing_weight_value = int(container_info[3] / 3)
-    area = 1 - abs(container_area - get_area(chrom)) / maximum_area
+    area = (1 - abs(container_area - get_area(chrom)) / maximum_area) / (int(get_area(chrom) > container_area) + 1)
     length_chrom = get_length(chrom)
     width_chrom = get_width(chrom)
     height_chrom = get_height(chrom)
-    maximum_height = 2.31
+    maximum_height = container_info[2]
+    weight_chrom = get_weight(chrom)
     duplicated_genes = get_duplicated_genes(chrom)
-    if length_chrom > container_info[1]:
-        length = (1 - abs(container_info[1] - length_chrom) / maximum_length) / 2
-    else :
-        length = 1 - abs(container_info[1] - length_chrom) / maximum_length
-    if width_chrom > container_info[0]:
-        width = (1 - abs(container_info[0] - get_width(chrom)) / maximum_width) / 2
-    else :
-        width = (1 - abs(container_info[0] - get_width(chrom)) / maximum_width)
-    if height_chrom > container_info[2]:
-        height = (1 - abs(container_info[2] - height_chrom) / maximum_height) / 2
-    else :
-        height = (1 - abs(container_info[2] - height_chrom) / maximum_height)
-    if duplicated_genes > 33:
-        duplicated_genes_count = ((1 - abs(0 - duplicated_genes)) / 33) / 2
-    else :
-        duplicated_genes_count = ((1 - abs(0 - duplicated_genes)) / 33)
-    weight = 1 - abs(container_info[3] - get_weight(chrom)) / maximum_estimated_weight
-    weight_balancing_score = 1 - \
-        abs(standard_balancing_weight_value - get_weight_balancing(chrom)[1]) / maximum_balancing_weight
-    final_score = (area * priority_values) + (length * priority_values) + (width * priority_values) + (height * priority_values) + (duplicated_genes_count * priority_values)+(
-        weight * priority_values) + (weight_balancing_score * priority_values)
+    length = (1 - abs(container_info[1] - length_chrom) / maximum_length) / (int(length_chrom > container_info[1]) + 1)
+    width = (1 - abs(container_info[0] - width_chrom) / maximum_width) / (int(width_chrom > container_info[0]) + 1)
+    height = ((1 - abs(container_info[2] - height_chrom)) / maximum_height) / (int(height_chrom > container_info[2]) + 1)
+    weight = (1 - abs(container_info[3] - weight_chrom) / maximum_estimated_weight) / (int(weight_chrom > container_info[3]) + 1)
+    weight_balancing_score = get_weight_balancing(chrom)[1]
+
+    #weight = 1 - abs(container_info[3] - get_weight(chrom)) / maximum_estimated_weight
+    weight_balancing_score = get_weight_balancing(chrom)[1]
+    if standard_passed(chrom, container_data):
+        final_score = area + width + height + length + weight + weight_balancing_score
+    else:
+        final_score = area + width + height + length + weight
     return final_score
 
 def is_all_zero(chrom):
@@ -600,45 +595,245 @@ def get_area(chrom):
     return area
 
 
-def get_weight_balancing(chrom):
+def get_weight_balancing_new(chrom):
+    chrom_sep = [
+        [chrom[0], chrom[1], chrom[2]],
+        [chrom[3], chrom[4], chrom[5]],
+        [chrom[6], chrom[7], chrom[8]],
+        [chrom[9], chrom[10], chrom[11]],
+        [chrom[12], chrom[13], chrom[14]],
+        [chrom[15], chrom[16], chrom[17]],
+        [chrom[18], chrom[19], chrom[20]],
+        [chrom[21], chrom[22], chrom[23]],
+        [chrom[24], chrom[25], chrom[26]],
+        [chrom[27], chrom[28], chrom[29]],
+        [chrom[30], chrom[31], chrom[32]],
+        ]
     weight_section = [0, 0, 0]
-    sections_index_ending = [10, 21, 32]
+    sections_index_ending = [3, 7, 10]
     sum_weight = 0
     chrom_arr = []
     cnt = 0
-    sub_chrom = list()
-    for x in chrom:
-        if cnt == 3:
-            chrom_arr.append(copy.deepcopy(sub_chrom))
-            cnt = 0
-            sub_chrom.clear()
-        sub_chrom.append(x.name)
+    sub_chrom = []
+    for x in chrom_sep:
+        list2 = []
+        for j in x:
+            list2.append(j.name)
+        chrom_arr.append(list2)
+    new_chrom = list()
+    indexes = list()
+    for index, value in enumerate(chrom_arr):
+        if value != [0, 0, 0]:
+            new_chrom.append(chrom_sep[index])
+    zeros = [StacksMaker.stack_zero, StacksMaker.stack_zero, StacksMaker.stack_zero]
+    for j in range(11 - len(new_chrom)):
+        new_chrom.append(zeros.copy())
     _back_up_chrom = copy.deepcopy(chrom)
-    for _ in range(chrom_arr.count([0, 0, 0])):
-        zero_index = chrom_arr.index([0, 0, 0])
-        _back_up_chrom.append(_back_up_chrom.pop(zero_index))
-        chrom_arr.sort(key=[0, 0, 0].__eq__)
-    for _ in range(len(chrom)):
-        if _ in sections_index_ending:
-            weight_section[int(str(_)[1])] += sum_weight
-            sum_weight = 0
-        for k, v in _back_up_chrom[_].weight_each.items():
-            sum_weight += sum(v)
+    weight_list = list()
+    for j in new_chrom:
+        row_weight = []
+        for x in j:
+            sum_fl = 0
+            for k, v in x.weight_each.items():
+                sum_fl += sum(v)
+            row_weight.append(sum_fl)
+        weight_list.append(row_weight)
+    weight_section_one = sum([  sum(weight_list[0]), 
+                            sum(weight_list[1]), 
+                            sum(weight_list[2]),
+                            sum(weight_list[3])])
+    weight_section_two = sum(   [sum(weight_list[4]),
+                                sum(weight_list[5]),
+                                sum(weight_list[6]),
+                                sum(weight_list[7])])
+    weight_section_three = sum([sum(weight_list[8]),
+                                sum(weight_list[9]),
+                                sum(weight_list[10])])
+    weight_section = [weight_section_one, weight_section_two, weight_section_three]
+    # cnt = 0
+    # for index, value in enumerate(new_chrom):
+    #     if index in sections_index_ending:
+    #         weight_section[cnt] += sum_weight
+    #         cnt += 1
+    #     for j in value:
+    #         for k, v in j.weight_each.items():
+    #             sum_weight += sum(v)
+    # for _ in range(chrom_arr.count([0, 0, 0])):
+    #     zero_index = chrom_arr.index([0, 0, 0])
+    #     _back_up_chrom.append(_back_up_chrom.pop(zero_index))
+    #     chrom_arr.sort(key=[0, 0, 0].__eq__)
+    # cnt = 0
+    # sum_weight = 0
+    # for _ in range(len(new_chrom)):
+    #     if cnt == int(len(new_chrom) / 3):
+    #         weight_section[int(str(_)[1])] += sum_weight
+    #         sum_weight = 0
+    #     for k, v in new_chrom[_].weight_each.items():
+    #         sum_weight += sum(v)
+    # for _ in range(len(new_chrom)):
+    #     if _ in sections_index_ending:
+    #         weight_section[int(str(_)[1])] += sum_weight
+    #         sum_weight = 0
+    #     for k, v in new_chrom2[_].weight_each.items():
+    #         sum_weight += sum(v)
+    #os.system('clear')
+    #visualizing_result(_back_up_chrom)
+    sum_weight = sum(weight_section)
+    avg_weight_section = sum_weight / 3
     balancing_score = 0
-    balancing_standard = sum(weight_section) / len(weight_section)
-    for j in weight_section:
-        balancing_score += balancing_standard - j
-    return weight_section, balancing_score
+    chrom_sep2 = [
+        [[chrom[0], chrom[1], chrom[2]],
+        [chrom[3], chrom[4], chrom[5]],
+        [chrom[6], chrom[7], chrom[8]],
+        [chrom[9], chrom[10], chrom[11]]],
+        [[chrom[12], chrom[13], chrom[14]],
+        [chrom[15], chrom[16], chrom[17]],
+        [chrom[18], chrom[19], chrom[20]],
+        [chrom[21], chrom[22], chrom[23]]],
+        [[chrom[24], chrom[25], chrom[26]],
+        [chrom[27], chrom[28], chrom[29]],
+        [chrom[30], chrom[31], chrom[32]]],
+        ]
+    weight_section2 = [0, 0, 0]
+    for idx, section in enumerate(chrom_sep2):
+        for child in section:
+            for element in child:
+                for k, v in element.weight_each.items():
+                    weight_section2[idx] += sum(v)
+    if avg_weight_section == 0:
+        avg_weight_section = 1
+    # for x in weight_section:
+    #     balancing_score += (1 - abs(avg_weight_section - x) / avg_weight_section) / (int(x > avg_weight_section) + 1)
+    section_one_diff, section_three_diff = 1, 1
+    if weight_section2[1] != 0:
+        section_one_diff = (abs(weight_section2[1] - weight_section2[0]) / weight_section2[1]) * 100
+        section_three_diff = (abs(weight_section2[1] - weight_section2[2]) / weight_section2[1]) * 100
+    balancing_score = int(weight_section2[0] < weight_section2[1] and weight_section2[1] > weight_section2[2] and weight_section2[0] > weight_section2[2] and section_one_diff <= 10 and section_three_diff <= 15)
+    #weight_section[0] = balancing_standard - weight_section[0]
+    #weight_section[1] = balancing_standard - weight_section[1]
+    #weight_section[2] = balancing_standard - weight_section[2]
+    #print(new_chrom)
+    return weight_section2, balancing_score
 
-
+def get_weight_balancing(chrom):
+    #print(container_data[0] * container_data[1])
+    chrom_sep = [
+        [chrom[0], chrom[1], chrom[2]],
+        [chrom[3], chrom[4], chrom[5]],
+        [chrom[6], chrom[7], chrom[8]],
+        [chrom[9], chrom[10], chrom[11]],
+        [chrom[12], chrom[13], chrom[14]],
+        [chrom[15], chrom[16], chrom[17]],
+        [chrom[18], chrom[19], chrom[20]],
+        [chrom[21], chrom[22], chrom[23]],
+        [chrom[24], chrom[25], chrom[26]],
+        [chrom[27], chrom[28], chrom[29]],
+        [chrom[30], chrom[31], chrom[32]],
+    ]
+    named_chrom = [
+        [chrom[0].name, chrom[1].name, chrom[2].name],
+        [chrom[3].name, chrom[4].name, chrom[5].name],
+        [chrom[6].name, chrom[7].name, chrom[8].name],
+        [chrom[9].name, chrom[10].name, chrom[11].name],
+        [chrom[12].name, chrom[13].name, chrom[14].name],
+        [chrom[15].name, chrom[16].name, chrom[17].name],
+        [chrom[18].name, chrom[19].name, chrom[20].name],
+        [chrom[21].name, chrom[22].name, chrom[23].name],
+        [chrom[24].name, chrom[25].name, chrom[26].name],
+        [chrom[27].name, chrom[28].name, chrom[29].name],
+        [chrom[30].name, chrom[31].name, chrom[32].name],
+    ]
+    without_zero_chrom = []
+    for index, row in enumerate(named_chrom):
+        if row != [0, 0, 0]:
+            without_zero_chrom.append(chrom_sep[index])
+    container_area = container_data[0] * container_data[1]
+    #area = [container_area * 0.33, container_area * 0.4, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27, container_area * 0.27]
+    max_part_area = (container_data[0] * container_data[1]) / 3
+    weight_sections = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    index_section = 0
+    section_area = 0
+    stack_count = 0
+    for index, row in enumerate(without_zero_chrom):
+        #print(weight_sections)
+        #print(section_area, max_part_area)
+        #print(index+1, len(chrom_sep))
+        #sum_weight_row = 0
+        if index_section != 2:
+            if stack_count >= 12:
+                index_section += 1
+        for stack in row:
+            #sum_area_row += stack.area
+            if (section_area + stack.area) <= max_part_area:
+                section_area += stack.area
+                sum_weight = 0
+                for key, value in stack.weight_each.items():
+                    sum_weight += sum(value)
+                weight_sections[index_section] += sum_weight
+            elif (section_area + stack.area)> max_part_area:
+                diff = max_part_area - (section_area + stack.area)
+                sum_weight = 0
+                for key, value in stack.weight_each.items():
+                    sum_weight += sum(value)
+                diff_weight = sum_weight * ((diff / stack.area) * 100) / 100
+                weight_sections[index_section] += diff_weight
+                index_section += 1
+                weight_sections[index_section] += sum_weight - diff_weight
+                section_area = 0
+                stack_count = 0
+    #avg_weight = get_weight(chrom) / 3
+    diff_section_one, diff_section_three, diff_section_two = -999, -999, -999
+    #if avg_weight != 0:
+        #diff_section_one = (1 - abs(avg_weight - weight_sections[0]) / avg_weight) / (int(weight_sections[0] > avg_weight) + 1)
+        #diff_section_two = (1 - abs(avg_weight - weight_sections[1]) / avg_weight) / (int(weight_sections[1] > avg_weight) + 1)
+        #diff_section_three = (1 - abs(avg_weight - weight_sections[2]) / avg_weight) / (int(weight_sections[2] > avg_weight) + 1)
+    if weight_sections[1] != 0:
+        diff_section_one = ((abs(weight_sections[1] - weight_sections[0])) / weight_sections[1]) * 100
+        diff_section_three = ((abs(weight_sections[1] - weight_sections[2])) / weight_sections[1]) * 100
+    # print(diff_section_one, diff_section_three)
+    # print(weight_sections[1] > weight_sections[0] > weight_sections[2] and diff_section_one <= 20 and diff_section_three <= 30 and sum(weight_sections[3::]) == 0)
+    # print(sum(weight_sections[3::]))
+    return weight_sections, int(weight_sections[1] > weight_sections[0] > weight_sections[2])
 def visualizing_result(chrom):
+    chrom_sep = [
+        [chrom[0], chrom[1], chrom[2]],
+        [chrom[3], chrom[4], chrom[5]],
+        [chrom[6], chrom[7], chrom[8]],
+        [chrom[9], chrom[10], chrom[11]],
+        [chrom[12], chrom[13], chrom[14]],
+        [chrom[15], chrom[16], chrom[17]],
+        [chrom[18], chrom[19], chrom[20]],
+        [chrom[21], chrom[22], chrom[23]],
+        [chrom[24], chrom[25], chrom[26]],
+        [chrom[27], chrom[28], chrom[29]],
+        [chrom[30], chrom[31], chrom[32]],
+        ]
+    weight_section = [0, 0, 0]
+    sections_index_ending = [3, 7, 10]
+    sum_weight = 0
+    chrom_arr = []
     cnt = 0
-    for x in chrom:
-        if cnt == 3:
-            print()
-            cnt = 0
-        print(x.name, end=" ")
-        cnt += 1
+    sub_chrom = []
+    for x in chrom_sep:
+        list2 = []
+        for j in x:
+            list2.append(j.name)
+        chrom_arr.append(list2)
+    new_chrom = list()
+    indexes = list()
+    for index, value in enumerate(chrom_arr):
+        if value != [0, 0, 0]:
+            new_chrom.append(chrom_sep[index])
+    zeros = [StacksMaker.stack_zero, StacksMaker.stack_zero, StacksMaker.stack_zero]
+    for j in range(11 - len(new_chrom)):
+        new_chrom.append(zeros.copy())
+    for j in new_chrom:
+        for x in j:
+            if x.name == 0:
+                print(f'---', end='     ')
+            else:
+                print(f'{x.name}', end='     ')
+        print()
 
 def get_remaining_stacks(optimal_chrom : list, remaining_stacks : list):
     for x in optimal_chrom:
@@ -659,6 +854,8 @@ def is_remain_validated(chrom : list, remaining_stacks : list):
     return is_valid
 
 def run_two(container_id : str, parcels_data : dict, weights : dict, first_run=False, remaining_stacks_input=None):
+    global container_data
+    #sys.setrecursionlimit(1000000)
     if first_run:
         stack_maker = StacksMaker(parcels_data, weights)
         stacks, remaining_parcels, same_type_stacking, mix_type_stacking = stack_maker.execute()
@@ -677,7 +874,11 @@ def run_two(container_id : str, parcels_data : dict, weights : dict, first_run=F
     gens = list()
     container_data = parcels.Info.get_container_info(container_id)
     container_data.append(parcels.Info.get_container_weight(container_id))
-    for x in range(2500):
+    container_data.append(container_id)
+    with open(f'evaluate.csv', 'w') as file:
+        writer = csv.writer(file)
+        writer.writerow(['Generation', 'Average Fitness Score', 'Minimum Fitness Score', 'Maximum Fitness Score', "Validated Chromosomes (Count)"])
+    for x in range(10000):
         if platform == 'linux' or platform == 'darwin':
             os.system("clear")
         else :
@@ -686,6 +887,7 @@ def run_two(container_id : str, parcels_data : dict, weights : dict, first_run=F
         fitness_values = get_fitness_values(pop, container_data)
         print(f"Running @ Generation {x+1}")
         print(f'Fitness Value = {max(fitness_values)}')
+        print(f'Container Type : {container_id}')
         # for i in pop[fitness_values.index(max(fitness_values))]:
         #     print(i.name)
         length = get_length(pop[fitness_values.index(max(fitness_values))])
@@ -698,7 +900,7 @@ def run_two(container_id : str, parcels_data : dict, weights : dict, first_run=F
             pop[fitness_values.index(max(fitness_values))])[0]
         print(f"\n{weight_section}")
         if prev_score == max(fitness_values):
-            if score_streak > 50:
+            if score_streak > 500:
                 break
             else:
                 score_streak += 1
@@ -714,8 +916,15 @@ def run_two(container_id : str, parcels_data : dict, weights : dict, first_run=F
         scores_to_plot.append(max(fitness_values))
         gens.append(x+1)
         #print(len(stacks))
+        final_fitness = get_fitness_values(pop, container_data)
+        with open('evaluate.csv', 'a') as file:
+            writer = csv.writer(file)
+            writer.writerow([str(x+1), str(round(sum(final_fitness) / len(final_fitness), 2)), str(round(min(final_fitness), 2)), str(round(max(final_fitness), 2)), str(get_valid_chroms(pop, container_data))])
     body = make_arr_response(pop[fitness_values.index(max(fitness_values))], container_id)
+    #if standard_passed(pop[fitness_values.index(max(fitness_values))], container_data):
     remaining_stacks = get_remaining_stacks(pop[fitness_values.index(max(fitness_values))], remaining_stacks.copy())
+    
+
     #remaining_parcels = get_remaining_parcels(pop[fitness_values.index(max(fitness_values))], parcels_data.copy())
     #print(is_remain_validated(pop[fitness_values.index(max(fitness_values))], stacks.copy()))
     # print(len(remaining_stacks))
@@ -723,6 +932,26 @@ def run_two(container_id : str, parcels_data : dict, weights : dict, first_run=F
     # plt.show()
     # to_json(body)
     return [body, remaining_stacks.copy()]
+def standard_passed(chrom, container_info):
+    length = get_length(chrom)
+    width = get_width(chrom)
+    area = get_area(chrom)
+    height = get_height(chrom)
+    result = True
+    weight_sections = get_weight_balancing(chrom)
+    def check_weight_balancing(weight_sections):
+        if weight_sections[0] < weight_sections[1] and weight_sections[1] > weight_sections[2] and weight_sections[0] > weight_sections[2]:
+            return True
+        return False
+    if length > container_info[1]:
+        return False
+    elif width > container_info[0]:
+        return False
+    elif area > (container_info[0] * container_info[1]):
+        return False
+    elif height > (container_info[2]):
+        return False
+    return True
 def run(containers_arr : list, parcels_data : dict, weights : dict):
     global remaining_stacks
     global container_data
@@ -964,16 +1193,42 @@ def get_remaining_parcels(chrom : list, remaining_parcels : dict):
                 for l in v:
                     remaining_parcels[l] -= 1
     return remaining_parcels
+
+def get_valid_chroms(pop, container_info):
+    def check_valid(weight, length, width, area, weight_balancing):
+        if weight > container_info[3]:
+            return False
+        elif length > container_info[1]:
+            return False
+        elif width > container_info[0]:
+            return False
+        elif area > (container_info[0] * container_info[1]):
+            return False
+        elif not weight_balancing:
+            return False
+        else :
+            return True
+
+    valid_cnt = 0
+    for j in pop:
+        weight = get_weight(j)
+        length = get_length(j)
+        width = get_width(j)
+        area = get_area(j)
+        weight_balancing = get_weight_balancing(j)[1]
+        if check_valid(weight, length, width, area, weight_balancing):
+            valid_cnt += 1
+    return valid_cnt
 if __name__ == '__main__':
     dummy_parcels = {
-        'ssp': 100,
-        'smp': 100,
-        'hssp': 100,
-        'mlp': 100,
-        'mp': 100,
-        'lp': 200,
-        'lhp': 200,
-        'etc': 100
+        'ssp': 500,
+        'smp': 0,
+        'hssp': 0,
+        'mlp': 0,
+        'mp': 0,
+        'lp': 0,
+        'lhp': 0,
+        'etc': 0
     }
     dummy_weights = {
         'ssp': [10],
