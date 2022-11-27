@@ -11,7 +11,7 @@ services:
     # networks:
     #   app_net:
     #     ipv4_address: 192.168.0.99
-    command: uvicorn main-web-socket:app --host 0.0.0.0 --port 9696
+    command: uvicorn main-web-socket:app --host 0.0.0.0 --port 9696 --workers 110
     tty: true # if no command exec, the container still alive
     
 # networks:
